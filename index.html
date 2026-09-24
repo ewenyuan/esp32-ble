@@ -25,14 +25,12 @@
     <button id="connectBtn">連接藍牙設備</button>
     <button id="disconnectBtn" class="btn-disconnect" style="display:none;">中斷連線</button>
 
-    <!-- 蜂鳴器控制區 -->
     <div class="control-group">
         <h2>🐝 蜂鳴器控制</h2>
         <button id="buzzerOn" class="btn-buzzer-on">鳴叫 (B1)</button>
         <button id="buzzerOff" class="btn-buzzer-off">關閉 (B0)</button>
     </div>
 
-    <!-- WS2812 全體控制區 -->
     <div class="control-group">
         <h2>🎨 WS2812 全體燈效</h2>
         <button onclick="sendTx('L:ALL:255,0,0')">全亮紅光</button>
@@ -42,7 +40,6 @@
         <button onclick="sendTx('L:ALL:0,0,0')" style="background-color:#333;">全滅</button>
     </div>
 
-    <!-- 5顆燈獨立控制區 -->
     <div class="control-group">
         <h2>🚨 5顆 LED 個別調色</h2>
         <div id="pixelContainer"></div>
@@ -54,9 +51,8 @@
 
         let bluetoothDevice = null;
         let txCharacteristic = null;
-        let lastSentTime = 0; // 用於計算發送間隔時間
+        let lastSentTime = 0;
 
-        // 動態產生 5 顆燈的顏色選擇器
         const container = document.getElementById('pixelContainer');
         for (let i = 0; i < 5; i++) {
             container.innerHTML += `
@@ -67,7 +63,6 @@
             `;
         }
 
-        // 連線藍牙 (接受所有裝置過濾器)
         document.getElementById('connectBtn').addEventListener('click', async () => {
             try {
                 document.getElementById('status').innerText = "正在搜尋裝置...";
@@ -92,7 +87,6 @@
             }
         });
 
-        // 中斷連線
         document.getElementById('disconnectBtn').addEventListener('click', () => {
             if (bluetoothDevice) bluetoothDevice.gatt.disconnect();
         });
@@ -104,27 +98,25 @@
             document.getElementById('disconnectBtn').style.display = "none";
         }
 
-        // 發送資料的核心函式
+        // ⚡ 終極延遲優化：改用 writeValueWithoutResponse，解除 iOS 佇列限制，實現硬體秒級反應
         async function sendTx(message) {
             if (!txCharacteristic) return;
             try {
                 let encoder = new TextEncoder();
                 let data = encoder.encode(message + '\n');
-                await txCharacteristic.writeValue(data);
+                await txCharacteristic.writeValueWithoutResponse(data); 
                 console.log("已發送: " + message);
             } catch (error) {
                 console.error("發送失敗:", error);
             }
         }
 
-        // 綁定蜂鳴器按鈕
         document.getElementById('buzzerOn').addEventListener('click', () => sendTx('B1'));
         document.getElementById('buzzerOff').addEventListener('click', () => sendTx('B0'));
 
-        // ⚡ 網頁端節流防塞車設計：在拖曳/快速連續變更顏色時，強制限制每 60 毫秒才發送一次
         function updatePixelColorThrottled(index) {
             const now = Date.now();
-            if (now - lastSentTime > 60) { 
+            if (now - lastSentTime > 50) { 
                 updatePixelColor(index);
                 lastSentTime = now;
             }
